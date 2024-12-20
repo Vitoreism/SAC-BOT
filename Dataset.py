@@ -1,5 +1,6 @@
 from pymongo import MongoClient
-from datetime import datetime
+from time import sleep
+from datetime import datetime, timezone
 from bson import ObjectId
 
 client = MongoClient("mongodb://localhost:27017/") 
@@ -8,22 +9,26 @@ db = client["sac_centro_informatica"]
 
 colecao_status = db["status_problemas"]
 
+colecao_status.create_index([("status", 1)], unique=True)
+
 status_list = ["pendente", "em_andamento", "finalizado"]
 
 for status in status_list:
-    if colecao_status.count_documents({"status": status}) == 0:
+    if not colecao_status.find_one({"status": status}):
         colecao_status.insert_one({
             "status": status,
             "problemas": []
         })
 
+
+#Ao criar um problema, ele deve ser iniciado com o satus "pendente"
 def criar_problema(numero_usuario, mensagem, classificacao):
     problema = {
         "problema_id": ObjectId(),
         "numero_usuario": numero_usuario,
         "mensagem": mensagem,
         "classificacao": classificacao,
-        "data_criacao": datetime.utcnow()
+        "data_criacao": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     }
     resultado = colecao_status.update_one(
         {"status": "pendente"},
@@ -78,6 +83,12 @@ if __name__ == "__main__":
     for problema in pendentes:
         print(problema)
 
+
+    print("VAI ENTRAR EM ANDAMENTO...: ")
+
+    sleep(10)
+
+
     atualizado = atualizar_status_problema(novo_id, "em_andamento")
     if atualizado:
         print("\nStatus atualizado para 'em_andamento'.")
@@ -88,6 +99,11 @@ if __name__ == "__main__":
     em_andamento = obter_problemas_por_status("em_andamento")
     for problema in em_andamento:
         print(problema)
+
+
+    print("VAI FINALIZAR...:")
+    sleep(10)
+
 
     finalizado = finalizar_problema(novo_id)
     if finalizado:
